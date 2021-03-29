@@ -52,14 +52,19 @@ def run_spark_job(spark):
     # according to: https://knowledge.udacity.com/questions/349349
     distinct_table = service_table \
                      .select("original_crime_type_name", "disposition", "call_date_time") \
-                     .withWatermark("call_date_time", "15 minute")
-
+                     .withWatermark("call_date_time", "60 minute")
+    
+#     distinct_table.printSchema()
+#     |-- call_date_time: timestamp (nullable = true)
+    
     # count the number of original crime type
+    w = psf.window("call_date_time", "30 minutes", "10 minutes")
     agg_df = distinct_table \
              .select("original_crime_type_name", "call_date_time", "disposition") \
-             .withWatermark("call_date_time", "15 minutes") \
-             .groupby("original_crime_type_name") \
-             .agg(psf.count("original_crime_type_name").alias("count_crime_type"))
+             .withWatermark("call_date_time", "60 minutes") \
+             .groupby(w, "original_crime_type_name") \
+             .agg(psf.count("original_crime_type_name").alias("count_crime_type")) \
+             .sort(psf.col("count_crime_type").desc())
     
     # TODO Q1. Submit a screen shot of a batch ingestion of the aggregation
     # TODO write output stream
